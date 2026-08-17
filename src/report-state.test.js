@@ -24,27 +24,95 @@ describe("pengelolaan urutan foto", () => {
   });
 
   it("hanya mengizinkan ekspor saat tanggal dan foto tersedia", () => {
-    expect(canExport({ date: "2026-08-10", images: photos, columns: 4, busy: false })).toBe(
-      true,
-    );
-    expect(canExport({ date: "", images: photos, columns: 4, busy: false })).toBe(false);
-    expect(canExport({ date: "2026-08-10", images: [], columns: 4, busy: false })).toBe(
-      false,
-    );
-    expect(canExport({ date: "2026-08-10", images: photos, columns: 4, busy: true })).toBe(
-      false,
-    );
+    expect(
+      canExport({
+        date: "2026-08-10",
+        images: photos,
+        columns: 4,
+        reportType: "waste",
+        busy: false,
+      }),
+    ).toBe(true);
+    expect(
+      canExport({
+        date: "",
+        images: photos,
+        columns: 4,
+        reportType: "waste",
+        busy: false,
+      }),
+    ).toBe(false);
+    expect(
+      canExport({
+        date: "2026-08-10",
+        images: [],
+        columns: 4,
+        reportType: "waste",
+        busy: false,
+      }),
+    ).toBe(false);
+    expect(
+      canExport({
+        date: "2026-08-10",
+        images: photos,
+        columns: 4,
+        reportType: "waste",
+        busy: true,
+      }),
+    ).toBe(false);
   });
 
   it.each([2, 3, 4])("mengizinkan ekspor untuk %s kolom", (columns) => {
-    expect(canExport({ date: "2026-08-10", images: photos, columns, busy: false })).toBe(
-      true,
-    );
+    expect(
+      canExport({
+        date: "2026-08-10",
+        images: photos,
+        columns,
+        reportType: "waste",
+        busy: false,
+      }),
+    ).toBe(true);
   });
 
   it.each([1, 5, undefined])("menolak ekspor untuk pilihan kolom %s", (columns) => {
-    expect(canExport({ date: "2026-08-10", images: photos, columns, busy: false })).toBe(
-      false,
-    );
+    expect(
+      canExport({
+        date: "2026-08-10",
+        images: photos,
+        columns,
+        reportType: "waste",
+        busy: false,
+      }),
+    ).toBe(false);
   });
+
+  it.each(["waste", "incoming-goods", "cooked-food"])(
+    "mengizinkan ekspor untuk jenis %s",
+    (reportType) => {
+      expect(
+        canExport({
+          date: "2026-08-18",
+          images: photos,
+          columns: 4,
+          reportType,
+          busy: false,
+        }),
+      ).toBe(true);
+    },
+  );
+
+  it.each([undefined, "", "other"])(
+    "menolak jenis laporan mentah %s",
+    (reportType) => {
+      expect(
+        canExport({
+          date: "2026-08-18",
+          images: photos,
+          columns: 4,
+          reportType,
+          busy: false,
+        }),
+      ).toBe(false);
+    },
+  );
 });

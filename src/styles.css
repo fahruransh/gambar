@@ -236,6 +236,7 @@ main {
 }
 
 #report-date,
+#report-type,
 #column-count {
   width: 100%;
   min-height: 52px;
@@ -249,22 +250,33 @@ main {
 }
 
 #report-date:hover,
+#report-type:hover,
 #column-count:hover {
   border-color: var(--leaf);
 }
 
+.report-type-field,
 .column-field {
-  margin-top: 16px;
   display: grid;
   gap: 7px;
 }
 
+.report-type-field {
+  margin-bottom: 16px;
+}
+
+.column-field {
+  margin-top: 16px;
+}
+
+.report-type-field > span,
 .column-field > span {
   color: var(--ink-soft);
   font-size: 12px;
   font-weight: 750;
 }
 
+#report-type,
 #column-count {
   cursor: pointer;
 }

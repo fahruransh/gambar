@@ -14,6 +14,25 @@ const MONTHS = [
   "Desember",
 ];
 const SUPPORTED_COLUMN_COUNTS = new Set([2, 3, 4]);
+export const REPORT_TYPES = Object.freeze({
+  waste: Object.freeze({ label: "Laporan Sampah", slug: "laporan-sampah" }),
+  "incoming-goods": Object.freeze({
+    label: "Laporan Barang Datang",
+    slug: "laporan-barang-datang",
+  }),
+  "cooked-food": Object.freeze({
+    label: "Laporan Masakan Jadi",
+    slug: "laporan-masakan-jadi",
+  }),
+});
+
+export function normalizeReportType(value) {
+  return Object.hasOwn(REPORT_TYPES, value) ? value : "waste";
+}
+
+export function getReportType(value) {
+  return REPORT_TYPES[normalizeReportType(value)];
+}
 
 export function normalizeColumnCount(value) {
   const count = Number(value);
@@ -47,6 +66,10 @@ export function formatIndonesianDate(isoDate) {
   return `${DAYS[date.getDay()]}, ${date.getDate()} ${MONTHS[date.getMonth()]} ${date.getFullYear()}`;
 }
 
+export function formatReportTitle(reportType, isoDate) {
+  return `${getReportType(reportType).label} — ${formatIndonesianDate(isoDate)}`;
+}
+
 export function groupIntoRows(items, columnCount = 4) {
   if (!Number.isInteger(columnCount) || columnCount < 1) {
     throw new RangeError("Jumlah kolom harus berupa bilangan bulat positif.");
@@ -61,9 +84,9 @@ export function groupIntoRows(items, columnCount = 4) {
   return rows;
 }
 
-export function createReportFilename(isoDate, extension) {
+export function createReportFilename(reportType, isoDate, extension) {
   const cleanExtension = String(extension).replace(/^\./, "").toLowerCase();
-  return `laporan-sampah-${isoDate}.${cleanExtension}`;
+  return `${getReportType(reportType).slug}-${isoDate}.${cleanExtension}`;
 }
 
 export function fitInside(width, height, maxWidth, maxHeight) {

@@ -44,13 +44,21 @@
         </p>
       </section>
 
-      <section class="workspace" aria-label="Penyusun laporan sampah">
+      <section class="workspace" aria-label="Penyusun laporan foto">
         <div class="setup-card">
           <div class="step-block date-step">
             <span class="step-number" aria-hidden="true">1</span>
             <div class="step-content">
               <label for="report-date">Tanggal laporan</label>
               <p>Pilih tanggal pengambilan foto.</p>
+              <label class="report-type-field" for="report-type">
+                <span>Jenis laporan</span>
+                <select id="report-type" name="report-type">
+                  <option value="waste" selected>Laporan Sampah</option>
+                  <option value="incoming-goods">Laporan Barang Datang</option>
+                  <option value="cooked-food">Laporan Masakan Jadi</option>
+                </select>
+              </label>
               <input id="report-date" name="report-date" type="date" required />
               <label class="column-field" for="column-count">
                 <span>Jumlah kolom</span>
@@ -66,7 +74,7 @@
           <div class="step-block upload-step">
             <span class="step-number" aria-hidden="true">2</span>
             <div class="step-content">
-              <label for="photo-input">Unggah foto sampah</label>
+              <label for="photo-input">Unggah foto laporan</label>
               <p>Bisa pilih banyak foto sekaligus.</p>
               <label id="drop-zone" class="drop-zone" for="photo-input">
                 <input
@@ -126,7 +134,7 @@
               <p>Pilih tanggal lalu unggah minimal satu foto untuk mulai.</p>
             </div>
             <div id="table-scroll" class="table-scroll" hidden>
-              <table id="report-table" aria-label="Pratinjau tabel laporan sampah">
+              <table id="report-table" aria-label="Pratinjau tabel laporan">
                 <colgroup id="report-columns"></colgroup>
                 <thead>
                   <tr><th id="report-title-cell" colspan="4">Pilih tanggal laporan</th></tr>

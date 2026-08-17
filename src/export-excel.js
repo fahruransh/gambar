@@ -2,7 +2,8 @@ import ExcelJS from "exceljs";
 import {
   createReportFilename,
   fitInside,
-  formatIndonesianDate,
+  formatReportTitle,
+  getReportType,
   groupIntoRows,
   normalizeColumnCount,
 } from "./report-utils.js";
@@ -13,17 +14,23 @@ const IMAGE_MAX_WIDTH = 154;
 const EXCEL_ROW_HEIGHTS = { 2: 210, 3: 170, 4: 150 };
 const THIN_BORDER = { style: "thin", color: { argb: "FF1F2925" } };
 
-export function buildExcelWorkbook({ date, images, columns: requestedColumns }) {
+export function buildExcelWorkbook({
+  date,
+  images,
+  columns: requestedColumns,
+  reportType,
+}) {
   const columns = normalizeColumnCount(requestedColumns);
   const rowHeight = EXCEL_ROW_HEIGHTS[columns];
   const cellPixelHeight = Math.round((rowHeight * 4) / 3);
   const lastColumn = String.fromCharCode(64 + columns);
+  const reportDefinition = getReportType(reportType);
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "Tabel Sampah";
   workbook.created = new Date();
-  workbook.subject = "Laporan foto sampah harian";
+  workbook.subject = reportDefinition.label;
 
-  const worksheet = workbook.addWorksheet("Laporan Sampah", {
+  const worksheet = workbook.addWorksheet(reportDefinition.label, {
     views: [{ showGridLines: false }],
     pageSetup: {
       paperSize: 9,
@@ -50,7 +57,7 @@ export function buildExcelWorkbook({ date, images, columns: requestedColumns }) 
 
   worksheet.mergeCells(`A1:${lastColumn}1`);
   const titleCell = worksheet.getCell("A1");
-  titleCell.value = formatIndonesianDate(date);
+  titleCell.value = formatReportTitle(reportType, date);
   titleCell.font = { name: "Arial", size: 13, bold: false, color: { argb: "FF111111" } };
   titleCell.alignment = { horizontal: "center", vertical: "middle" };
   worksheet.getRow(1).height = 28;
@@ -123,7 +130,7 @@ export async function downloadExcelReport(report) {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = createReportFilename(report.date, "xlsx");
+  anchor.download = createReportFilename(report.reportType, report.date, "xlsx");
   document.body.append(anchor);
   anchor.click();
   anchor.remove();

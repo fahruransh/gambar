@@ -7,6 +7,7 @@ import { buildWordDocument } from "./export-word.js";
 const JPEG_BYTES = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
 const report = {
   date: "2026-08-10",
+  reportType: "waste",
   images: [
     {
       id: "foto-1",
@@ -29,7 +30,9 @@ describe("ekspor dokumen", () => {
       const workbook = buildExcelWorkbook({ ...report, columns });
       const sheet = workbook.getWorksheet("Laporan Sampah");
 
-      expect(sheet.getRow(1).getCell(1).value).toBe("Senin, 10 Agustus 2026");
+      expect(sheet.getRow(1).getCell(1).value).toBe(
+        "Laporan Sampah — Senin, 10 Agustus 2026",
+      );
       expect(sheet.model.merges).toContain(titleRange);
       expect(sheet.getColumn(1).width).toBe(24);
       expect(sheet.getColumn(columns).width).toBe(24);
@@ -56,6 +59,18 @@ describe("ekspor dokumen", () => {
     expect(buffer.subarray(0, 2).toString()).toBe("PK");
   });
 
+  it.each([
+    ["waste", "Laporan Sampah"],
+    ["incoming-goods", "Laporan Barang Datang"],
+    ["cooked-food", "Laporan Masakan Jadi"],
+  ])("menerapkan judul jenis %s ke Excel", (reportType, label) => {
+    const workbook = buildExcelWorkbook({ ...report, reportType });
+    const sheet = workbook.getWorksheet(label);
+
+    expect(sheet).toBeDefined();
+    expect(sheet.getCell("A1").value).toBe(`${label} — Senin, 10 Agustus 2026`);
+  });
+
   it.each([2, 3, 4])(
     "membuat Word portrait dengan grid %s kolom",
     async (columns) => {
@@ -69,4 +84,15 @@ describe("ekspor dokumen", () => {
       expect(xml).toContain('w:w="10400"');
     },
   );
+
+  it.each([
+    ["incoming-goods", "Laporan Barang Datang"],
+    ["cooked-food", "Laporan Masakan Jadi"],
+  ])("menerapkan judul jenis %s ke Word", async (reportType, label) => {
+    const buffer = await Packer.toBuffer(buildWordDocument({ ...report, reportType }));
+    const zip = await JSZip.loadAsync(buffer);
+    const xml = await zip.file("word/document.xml").async("string");
+
+    expect(xml).toContain(`${label} — Senin, 10 Agustus 2026`);
+  });
 });

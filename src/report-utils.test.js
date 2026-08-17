@@ -3,8 +3,11 @@ import {
   createReportFilename,
   fitInside,
   formatIndonesianDate,
+  formatReportTitle,
+  getReportType,
   groupIntoRows,
   normalizeColumnCount,
+  normalizeReportType,
 } from "./report-utils.js";
 
 describe("aturan laporan", () => {
@@ -46,9 +49,31 @@ describe("aturan laporan", () => {
     expect(normalizeColumnCount(value)).toBe(expected);
   });
 
-  it("membuat nama file laporan yang aman", () => {
-    expect(createReportFilename("2026-08-10", "docx")).toBe(
-      "laporan-sampah-2026-08-10.docx",
+  it.each([
+    ["waste", "Laporan Sampah", "laporan-sampah"],
+    ["incoming-goods", "Laporan Barang Datang", "laporan-barang-datang"],
+    ["cooked-food", "Laporan Masakan Jadi", "laporan-masakan-jadi"],
+  ])("mengenali jenis laporan %s", (value, label, slug) => {
+    expect(normalizeReportType(value)).toBe(value);
+    expect(getReportType(value)).toEqual({ label, slug });
+  });
+
+  it.each([undefined, "", "other"])(
+    "mengembalikan %s ke laporan sampah",
+    (value) => {
+      expect(normalizeReportType(value)).toBe("waste");
+    },
+  );
+
+  it("membentuk judul lengkap sesuai jenis dan tanggal", () => {
+    expect(formatReportTitle("incoming-goods", "2026-08-18")).toBe(
+      "Laporan Barang Datang — Selasa, 18 Agustus 2026",
+    );
+  });
+
+  it("membuat nama file sesuai jenis laporan", () => {
+    expect(createReportFilename("cooked-food", "2026-08-18", ".DOCX")).toBe(
+      "laporan-masakan-jadi-2026-08-18.docx",
     );
   });
 

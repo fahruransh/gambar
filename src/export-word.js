@@ -18,7 +18,8 @@ import {
 import {
   createReportFilename,
   fitInside,
-  formatIndonesianDate,
+  formatReportTitle,
+  getReportType,
   groupIntoRows,
   normalizeColumnCount,
 } from "./report-utils.js";
@@ -66,7 +67,7 @@ function imageParagraph(image, layout) {
         transformation: dimensions,
         altText: {
           title: image.name,
-          description: `Foto sampah ${image.name}`,
+          description: `Foto laporan ${image.name}`,
           name: image.name,
         },
       }),
@@ -84,10 +85,17 @@ function imageCell(image, width, layout) {
   });
 }
 
-export function buildWordDocument({ date, images, columns: requestedColumns }) {
+export function buildWordDocument({
+  date,
+  images,
+  columns: requestedColumns,
+  reportType,
+}) {
   const columns = normalizeColumnCount(requestedColumns);
   const columnWidths = createColumnWidths(columns);
   const layout = WORD_LAYOUTS[columns];
+  const reportDefinition = getReportType(reportType);
+  const reportTitle = formatReportTitle(reportType, date);
   const titleRow = new TableRow({
     tableHeader: true,
     height: { value: 560, rule: HeightRule.EXACT },
@@ -104,7 +112,7 @@ export function buildWordDocument({ date, images, columns: requestedColumns }) {
             spacing: { before: 0, after: 0 },
             children: [
               new TextRun({
-                text: formatIndonesianDate(date),
+                text: reportTitle,
                 font: "Arial",
                 size: 24,
               }),
@@ -137,8 +145,8 @@ export function buildWordDocument({ date, images, columns: requestedColumns }) {
 
   return new Document({
     creator: "Tabel Sampah",
-    title: `Laporan Sampah ${formatIndonesianDate(date)}`,
-    description: `Laporan foto sampah harian dalam tabel ${columns} kolom.`,
+    title: reportTitle,
+    description: `${reportDefinition.label} dalam tabel ${columns} kolom.`,
     sections: [
       {
         properties: {
@@ -162,7 +170,7 @@ export async function downloadWordReport(report) {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = createReportFilename(report.date, "docx");
+  anchor.download = createReportFilename(report.reportType, report.date, "docx");
   document.body.append(anchor);
   anchor.click();
   anchor.remove();

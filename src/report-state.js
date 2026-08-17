@@ -1,3 +1,5 @@
+import { normalizeColumnCount, normalizeReportType } from "./report-utils.js";
+
 export function moveItem(items, id, offset) {
   const from = items.findIndex((item) => item.id === id);
   const to = from + offset;
@@ -12,8 +14,10 @@ export function removeItemById(items, id) {
   return items.filter((item) => item.id !== id);
 }
 
-export function canExport({ date, images, columns, busy }) {
+export function canExport({ date, images, columns, reportType, busy }) {
   const hasSupportedColumns = normalizeColumnCount(columns) === Number(columns);
-  return Boolean(date && images.length > 0 && hasSupportedColumns && !busy);
+  const hasSupportedReportType = normalizeReportType(reportType) === reportType;
+  return Boolean(
+    date && images.length > 0 && hasSupportedColumns && hasSupportedReportType && !busy,
+  );
 }
-import { normalizeColumnCount } from "./report-utils.js";

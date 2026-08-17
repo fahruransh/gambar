@@ -2,8 +2,10 @@ import "./styles.css";
 import { isSupportedImage, normalizeImageFile } from "./image-utils.js";
 import {
   formatIndonesianDate,
+  formatReportTitle,
   groupIntoRows,
   normalizeColumnCount,
+  normalizeReportType,
 } from "./report-utils.js";
 import { canExport, moveItem, removeItemById } from "./report-state.js";
 
@@ -24,6 +26,7 @@ const elements = {
   reportDate: document.querySelector("#report-date"),
   reportTable: document.querySelector("#report-table"),
   reportTitleCell: document.querySelector("#report-title-cell"),
+  reportType: document.querySelector("#report-type"),
   statusMessage: document.querySelector("#status-message"),
   tableScroll: document.querySelector("#table-scroll"),
 };
@@ -32,6 +35,7 @@ const state = {
   date: getTodayIso(),
   images: [],
   columns: 4,
+  reportType: "waste",
   busy: false,
 };
 
@@ -55,6 +59,7 @@ function setBusy(busy, message = "") {
   elements.photoInput.disabled = busy;
   elements.reportDate.disabled = busy;
   elements.columnCount.disabled = busy;
+  elements.reportType.disabled = busy;
   elements.dropZone.classList.toggle("is-busy", busy);
   if (message) setStatus(message, busy ? "working" : "neutral");
   render();
@@ -141,7 +146,7 @@ function renderPhotoList() {
 }
 
 function renderPreview() {
-  elements.reportTitleCell.textContent = formatIndonesianDate(state.date);
+  elements.reportTitleCell.textContent = formatReportTitle(state.reportType, state.date);
   elements.reportTitleCell.colSpan = state.columns;
   elements.columnBadge.textContent = `${state.columns} kolom`;
   elements.reportTable.dataset.columns = String(state.columns);
@@ -163,7 +168,7 @@ function renderPreview() {
       if (image) {
         const picture = document.createElement("img");
         picture.src = image.dataUrl;
-        picture.alt = `Foto sampah ${rowIndex * state.columns + columnIndex + 1}`;
+        picture.alt = `Foto laporan ${rowIndex * state.columns + columnIndex + 1}`;
         cell.append(picture);
       } else {
         cell.className = "empty-cell";
@@ -246,7 +251,12 @@ async function runExport(format) {
   const label = format === "word" ? "Word" : "Excel";
   setBusy(true, `Membuat file ${label}…`);
   try {
-    const report = { date: state.date, images: state.images, columns: state.columns };
+    const report = {
+      date: state.date,
+      images: state.images,
+      columns: state.columns,
+      reportType: state.reportType,
+    };
     if (format === "word") {
       const { downloadWordReport } = await import("./export-word.js");
       await downloadWordReport(report);
@@ -265,6 +275,7 @@ async function runExport(format) {
 
 elements.reportDate.value = state.date;
 elements.columnCount.value = String(state.columns);
+elements.reportType.value = state.reportType;
 elements.reportDate.addEventListener("change", (event) => {
   state.date = event.currentTarget.value;
   render();
@@ -279,6 +290,13 @@ elements.columnCount.addEventListener("change", (event) => {
   event.currentTarget.value = String(state.columns);
   render();
   setStatus(`Tabel diubah menjadi ${state.columns} kolom.`, "success");
+});
+
+elements.reportType.addEventListener("change", (event) => {
+  state.reportType = normalizeReportType(event.currentTarget.value);
+  event.currentTarget.value = state.reportType;
+  render();
+  setStatus("Jenis laporan diperbarui.", "success");
 });
 
 elements.photoInput.addEventListener("change", async (event) => {
