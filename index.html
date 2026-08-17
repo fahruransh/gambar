@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#18392e" />
+    <meta
+      name="description"
+      content="Susun foto sampah harian ke tabel rapi dan ekspor ke Word atau Excel."
+    />
+    <title>Tabel Sampah — Laporan Foto Harian</title>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="#main-content" aria-label="Tabel Sampah, ke konten utama">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 40 40" role="img">
+            <path d="M11 15h18l-1.6 18H12.6L11 15Z" />
+            <path d="M15 11h10M17 8h6" />
+            <path d="M16 20v8M20 20v8M24 20v8" />
+          </svg>
+        </span>
+        <span>
+          <strong>Tabel Sampah</strong>
+          <small>Laporan foto harian</small>
+        </span>
+      </a>
+      <span class="privacy-note">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 3 5 6v5c0 4.6 2.9 8.8 7 10 4.1-1.2 7-5.4 7-10V6l-7-3Z" />
+          <path d="m9.5 12 1.7 1.7 3.7-4" />
+        </svg>
+        Foto tetap di perangkat Anda
+      </span>
+    </header>
+
+    <main id="main-content">
+      <section class="hero" aria-labelledby="page-title">
+        <span class="eyebrow">Penyusun laporan</span>
+        <h1 id="page-title">Foto harian, langsung jadi<br /><em>laporan yang rapi.</em></h1>
+        <p>
+          Pilih tanggal, jumlah kolom, dan unggah semua foto. Kami susun otomatis dalam
+          tabel rapi yang siap dibuka di Word maupun Excel.
+        </p>
+      </section>
+
+      <section class="workspace" aria-label="Penyusun laporan sampah">
+        <div class="setup-card">
+          <div class="step-block date-step">
+            <span class="step-number" aria-hidden="true">1</span>
+            <div class="step-content">
+              <label for="report-date">Tanggal laporan</label>
+              <p>Pilih tanggal pengambilan foto.</p>
+              <input id="report-date" name="report-date" type="date" required />
+              <label class="column-field" for="column-count">
+                <span>Jumlah kolom</span>
+                <select id="column-count" name="column-count">
+                  <option value="2">2 kolom</option>
+                  <option value="3">3 kolom</option>
+                  <option value="4" selected>4 kolom</option>
+                </select>
+              </label>
+            </div>
+          </div>
+
+          <div class="step-block upload-step">
+            <span class="step-number" aria-hidden="true">2</span>
+            <div class="step-content">
+              <label for="photo-input">Unggah foto sampah</label>
+              <p>Bisa pilih banyak foto sekaligus.</p>
+              <label id="drop-zone" class="drop-zone" for="photo-input">
+                <input
+                  id="photo-input"
+                  name="photos"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  multiple
+                />
+                <span class="upload-icon" aria-hidden="true">
+                  <svg viewBox="0 0 48 48">
+                    <path d="M24 31V12m0 0-8 8m8-8 8 8" />
+                    <path d="M12 28v8h24v-8" />
+                  </svg>
+                </span>
+                <strong>Tarik foto ke sini</strong>
+                <span>atau <u>pilih dari perangkat</u></span>
+                <small>JPG, PNG, atau WebP • maksimal 25 MB per foto</small>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div id="photo-panel" class="photo-panel" hidden>
+          <div class="panel-heading">
+            <div>
+              <span class="section-kicker">Urutan foto</span>
+              <h2><span id="photo-count">0</span> foto siap digunakan</h2>
+            </div>
+            <button id="clear-report" class="text-button danger" type="button">
+              Hapus semua
+            </button>
+          </div>
+          <p class="panel-help">Gunakan tombol panah untuk mengatur urutan foto di tabel.</p>
+          <div id="photo-list" class="photo-list" aria-label="Daftar foto terpilih"></div>
+        </div>
+
+        <section class="preview-section" aria-labelledby="preview-title">
+          <div class="preview-heading">
+            <div>
+              <span class="section-kicker">Pratinjau dokumen</span>
+              <h2 id="preview-title">Tabel laporan</h2>
+            </div>
+            <span id="column-badge" class="column-badge">4 kolom</span>
+          </div>
+
+          <div class="paper-shell">
+            <div id="empty-preview" class="empty-preview">
+              <span aria-hidden="true">
+                <svg viewBox="0 0 64 64">
+                  <path d="M12 15h40v34H12z" />
+                  <path d="M12 25h40M22 25v24M32 25v24M42 25v24" />
+                  <path d="m18 20 2 2 4-5" />
+                </svg>
+              </span>
+              <strong>Tabel Anda akan muncul di sini</strong>
+              <p>Pilih tanggal lalu unggah minimal satu foto untuk mulai.</p>
+            </div>
+            <div id="table-scroll" class="table-scroll" hidden>
+              <table id="report-table" aria-label="Pratinjau tabel laporan sampah">
+                <colgroup id="report-columns"></colgroup>
+                <thead>
+                  <tr><th id="report-title-cell" colspan="4">Pilih tanggal laporan</th></tr>
+                </thead>
+                <tbody id="report-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <div class="export-bar">
+          <div>
+            <span class="step-number" aria-hidden="true">3</span>
+            <span><strong>Unduh laporan</strong><small>Gambar tertanam, tabel tetap rapi.</small></span>
+          </div>
+          <div class="export-actions">
+            <button id="download-word" class="button word-button" type="button" disabled>
+              <span class="file-icon" aria-hidden="true">W</span>
+              Unduh Word
+            </button>
+            <button id="download-excel" class="button excel-button" type="button" disabled>
+              <span class="file-icon" aria-hidden="true">X</span>
+              Unduh Excel
+            </button>
+          </div>
+        </div>
+
+        <p id="status-message" class="status-message" role="status" aria-live="polite"></p>
+      </section>
+    </main>
+
+    <footer>
+      <span>Tabel Sampah</span>
+      <span>Dibuat untuk pekerjaan lapangan yang lebih ringan.</span>
+    </footer>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

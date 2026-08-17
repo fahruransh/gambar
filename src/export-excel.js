@@ -1,0 +1,131 @@
+import ExcelJS from "exceljs";
+import {
+  createReportFilename,
+  fitInside,
+  formatIndonesianDate,
+  groupIntoRows,
+  normalizeColumnCount,
+} from "./report-utils.js";
+
+const COLUMN_WIDTH = 24;
+const CELL_PIXEL_WIDTH = 168;
+const IMAGE_MAX_WIDTH = 154;
+const EXCEL_ROW_HEIGHTS = { 2: 210, 3: 170, 4: 150 };
+const THIN_BORDER = { style: "thin", color: { argb: "FF1F2925" } };
+
+export function buildExcelWorkbook({ date, images, columns: requestedColumns }) {
+  const columns = normalizeColumnCount(requestedColumns);
+  const rowHeight = EXCEL_ROW_HEIGHTS[columns];
+  const cellPixelHeight = Math.round((rowHeight * 4) / 3);
+  const lastColumn = String.fromCharCode(64 + columns);
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "Tabel Sampah";
+  workbook.created = new Date();
+  workbook.subject = "Laporan foto sampah harian";
+
+  const worksheet = workbook.addWorksheet("Laporan Sampah", {
+    views: [{ showGridLines: false }],
+    pageSetup: {
+      paperSize: 9,
+      orientation: "portrait",
+      fitToPage: true,
+      fitToWidth: 1,
+      fitToHeight: 0,
+      horizontalCentered: true,
+      verticalCentered: false,
+      margins: {
+        left: 0.3,
+        right: 0.3,
+        top: 0.45,
+        bottom: 0.45,
+        header: 0.15,
+        footer: 0.15,
+      },
+    },
+  });
+
+  for (let column = 1; column <= columns; column += 1) {
+    worksheet.getColumn(column).width = COLUMN_WIDTH;
+  }
+
+  worksheet.mergeCells(`A1:${lastColumn}1`);
+  const titleCell = worksheet.getCell("A1");
+  titleCell.value = formatIndonesianDate(date);
+  titleCell.font = { name: "Arial", size: 13, bold: false, color: { argb: "FF111111" } };
+  titleCell.alignment = { horizontal: "center", vertical: "middle" };
+  worksheet.getRow(1).height = 28;
+
+  const rows = groupIntoRows(images, columns);
+  rows.forEach((row, rowIndex) => {
+    const worksheetRow = rowIndex + 2;
+    worksheet.getRow(worksheetRow).height = rowHeight;
+
+    row.forEach((image, columnIndex) => {
+      if (!image) return;
+
+      const imageId = workbook.addImage({
+        buffer: image.bytes,
+        extension: "jpeg",
+      });
+      const dimensions = fitInside(
+        image.width,
+        image.height,
+        IMAGE_MAX_WIDTH,
+        cellPixelHeight - 14,
+      );
+      const horizontalOffset = Math.max(0.04, (1 - dimensions.width / CELL_PIXEL_WIDTH) / 2);
+      const verticalOffset = Math.max(
+        0.03,
+        (1 - dimensions.height / cellPixelHeight) / 2,
+      );
+
+      worksheet.addImage(imageId, {
+        tl: {
+          col: columnIndex + horizontalOffset,
+          row: worksheetRow - 1 + verticalOffset,
+        },
+        ext: dimensions,
+        editAs: "oneCell",
+      });
+    });
+  });
+
+  const lastRow = Math.max(2, rows.length + 1);
+  for (let row = 1; row <= lastRow; row += 1) {
+    for (let column = 1; column <= columns; column += 1) {
+      const cell = worksheet.getRow(row).getCell(column);
+      cell.border = {
+        top: THIN_BORDER,
+        bottom: THIN_BORDER,
+        left: THIN_BORDER,
+        right: THIN_BORDER,
+      };
+      if (row > 1) {
+        cell.alignment = { horizontal: "center", vertical: "middle" };
+      }
+    }
+  }
+
+  worksheet.pageSetup.printArea = `A1:${lastColumn}${lastRow}`;
+  worksheet.pageSetup.printTitlesRow = "1:1";
+  worksheet.properties.defaultColWidth = COLUMN_WIDTH;
+  worksheet.properties.defaultRowHeight = rowHeight;
+
+  return workbook;
+}
+
+export async function downloadExcelReport(report) {
+  const workbook = buildExcelWorkbook(report);
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = createReportFilename(report.date, "xlsx");
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
