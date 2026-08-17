@@ -16,7 +16,7 @@ import {
   WidthType,
 } from "docx";
 import {
-  createReportFilename,
+  createMergedFilename,
   fitInside,
   formatReportTitle,
   getReportType,
@@ -24,7 +24,9 @@ import {
   normalizeColumnCount,
 } from "./report-utils.js";
 
+
 const TABLE_WIDTH = 10400;
+const BLOCK_GAP = 260;
 const WORD_LAYOUTS = {
   2: { rowHeight: 4200, imageWidth: 330, imageHeight: 270 },
   3: { rowHeight: 3200, imageWidth: 220, imageHeight: 210 },
@@ -85,16 +87,9 @@ function imageCell(image, width, layout) {
   });
 }
 
-export function buildWordDocument({
-  date,
-  images,
-  columns: requestedColumns,
-  reportType,
-}) {
-  const columns = normalizeColumnCount(requestedColumns);
+function buildReportTable({ date, images, columns, reportType }) {
   const columnWidths = createColumnWidths(columns);
   const layout = WORD_LAYOUTS[columns];
-  const reportDefinition = getReportType(reportType);
   const reportTitle = formatReportTitle(reportType, date);
   const titleRow = new TableRow({
     tableHeader: true,
@@ -134,7 +129,7 @@ export function buildWordDocument({
       }),
   );
 
-  const table = new Table({
+  return new Table({
     width: { size: TABLE_WIDTH, type: WidthType.DXA },
     columnWidths,
     layout: TableLayoutType.FIXED,
@@ -142,11 +137,49 @@ export function buildWordDocument({
     borders: CELL_BORDERS,
     rows: [titleRow, ...imageRows],
   });
+}
+
+function spacerParagraph() {
+  return new Paragraph({
+    spacing: { before: 0, after: 0, line: BLOCK_GAP, lineRule: "exact" },
+    children: [],
+  });
+}
+
+function normalizeToBlocks(report) {
+  const columns = normalizeColumnCount(report.columns);
+  if (Array.isArray(report.blocks)) {
+    return { columns, blocks: report.blocks };
+  }
+  return {
+    columns,
+    blocks: [
+      { date: report.date, images: report.images, reportType: report.reportType },
+    ],
+  };
+}
+
+export function buildWordDocument(report) {
+  const { columns, blocks } = normalizeToBlocks(report);
+  const primaryType = getReportType(blocks[0] ? blocks[0].reportType : "waste");
+
+  const children = [];
+  blocks.forEach((block, index) => {
+    if (index > 0) children.push(spacerParagraph());
+    children.push(
+      buildReportTable({
+        date: block.date,
+        images: block.images,
+        columns,
+        reportType: block.reportType,
+      }),
+    );
+  });
 
   return new Document({
     creator: "Tabel Sampah",
-    title: reportTitle,
-    description: `${reportDefinition.label} dalam tabel ${columns} kolom.`,
+    title: primaryType.label,
+    description: `Laporan foto dalam tabel ${columns} kolom.`,
     sections: [
       {
         properties: {
@@ -159,18 +192,18 @@ export function buildWordDocument({
             margin: { top: 720, right: 720, bottom: 720, left: 720 },
           },
         },
-        children: [table],
+        children,
       },
     ],
   });
 }
-
 export async function downloadWordReport(report) {
   const blob = await Packer.toBlob(buildWordDocument(report));
+  const { blocks } = normalizeToBlocks(report);
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = createReportFilename(report.reportType, report.date, "docx");
+  anchor.download = createMergedFilename(blocks, "docx");
   document.body.append(anchor);
   anchor.click();
   anchor.remove();

@@ -20,35 +20,20 @@
 ### Task 1: Preserve Date Binding Contract
 
 **Files:**
-- Create: `src/date-input-template.test.js`
 - Modify: `index.html:138-141`
 
 **Interfaces:**
 - Consumes: the report block template with `input[data-report-date]`.
 - Produces: a styled date-control wrapper while retaining the exact input selector used by `src/main.js`.
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Capture the failing visual baseline**
 
-```js
-import { readFile } from "node:fs/promises";
-import { describe, expect, it } from "vitest";
+Run a Vite preview and capture the first report card with Chrome headless.
 
-const template = await readFile(new URL("../index.html", import.meta.url), "utf8");
+Expected: FAIL the visual acceptance check because the date input has a square,
+browser-default calendar affordance instead of the application control style.
 
-describe("report date template", () => {
-  it("keeps the native date binding inside the styled control", () => {
-    expect(template).toMatch(/class="date-control"[\\s\\S]*<input[\\s\\S]*type="date"[\\s\\S]*data-report-date/);
-  });
-});
-```
-
-- [ ] **Step 2: Run test to verify it fails**
-
-Run: `npx vitest run src/date-input-template.test.js`
-
-Expected: FAIL because the `date-control` wrapper does not exist.
-
-- [ ] **Step 3: Write minimal template implementation**
+- [ ] **Step 2: Write minimal template implementation**
 
 ```html
 <label class="field date-field">
@@ -59,17 +44,18 @@ Expected: FAIL because the `date-control` wrapper does not exist.
 </label>
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [ ] **Step 3: Confirm the binding contract**
 
-Run: `npx vitest run src/date-input-template.test.js`
+Run: `npm test`
 
-Expected: PASS.
+Expected: all existing report state and exporter tests pass; the `data-report-date`
+attribute remains present for `src/main.js` to bind its existing `change` handler.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
-git add index.html src/date-input-template.test.js
-git commit -m "test: protect report date template binding"
+git add index.html
+git commit -m "feat: add report date control wrapper"
 ```
 
 ### Task 2: Style the Date Control
@@ -77,27 +63,12 @@ git commit -m "test: protect report date template binding"
 **Files:**
 - Modify: `index.html:138-141`
 - Modify: `src/styles.css:383-417`
-- Test: `src/date-input-template.test.js`
 
 **Interfaces:**
 - Consumes: `.date-field > .date-control > input[data-report-date]` from Task 1.
 - Produces: responsive date-control states for default, hover, focus-visible, and disabled input.
 
-- [ ] **Step 1: Write the failing test**
-
-```js
-it("exposes the decorative date control classes", () => {
-  expect(template).toContain('class="date-control__icon"');
-});
-```
-
-- [ ] **Step 2: Run test to verify it fails**
-
-Run: `npx vitest run src/date-input-template.test.js`
-
-Expected: FAIL because the calendar icon class does not exist.
-
-- [ ] **Step 3: Write minimal CSS implementation**
+- [ ] **Step 1: Write minimal CSS implementation**
 
 ```css
 .date-control { position: relative; display: block; }
@@ -118,16 +89,16 @@ Use the existing color variables and maintain a visible focus outline. The nativ
 calendar indicator remains available as an invisible clickable overlay in the
 right-side icon area.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [ ] **Step 2: Run the full test suite**
 
-Run: `npx vitest run src/date-input-template.test.js`
+Run: `npm test`
 
-Expected: PASS.
+Expected: all tests pass while the existing date wiring is unchanged.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
-git add src/styles.css src/date-input-template.test.js
+git add index.html src/styles.css
 git commit -m "feat: style native report date input"
 ```
 
@@ -144,7 +115,7 @@ git commit -m "feat: style native report date input"
 
 Run: `npm test`
 
-Expected: all test files pass, including `date-input-template.test.js`.
+Expected: all existing test files pass.
 
 - [ ] **Step 2: Create production build**
 
@@ -162,6 +133,6 @@ visible focus state; clicking the icon area still opens the native date picker.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add index.html src/styles.css src/date-input-template.test.js
+git add index.html src/styles.css
 git commit -m "feat: redesign report date control"
 ```

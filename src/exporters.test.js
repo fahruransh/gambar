@@ -95,4 +95,39 @@ describe("ekspor dokumen", () => {
 
     expect(xml).toContain(`${label} — Senin, 10 Agustus 2026`);
   });
+
+describe("ekspor multi-blok", () => {
+  const multi = {
+    columns: 4,
+    blocks: [
+      { date: "2026-08-10", reportType: "waste", images: report.images },
+      { date: "2026-08-11", reportType: "incoming-goods", images: report.images },
+    ],
+  };
+
+  it("membuat beberapa tabel Word untuk banyak blok", async () => {
+    const buffer = await Packer.toBuffer(buildWordDocument(multi));
+    const zip = await JSZip.loadAsync(buffer);
+    const xml = await zip.file("word/document.xml").async("string");
+
+    expect((xml.match(/<w:tbl>/g) || [])).toHaveLength(2);
+    expect(xml).toContain("Laporan Sampah — Senin, 10 Agustus 2026");
+    expect(xml).toContain("Laporan Barang Datang — Selasa, 11 Agustus 2026");
+  });
+
+  it("membuat beberapa tabel Excel dalam satu worksheet", () => {
+    const workbook = buildExcelWorkbook(multi);
+    const sheet = workbook.getWorksheet("Laporan");
+
+    expect(sheet).toBeDefined();
+    expect(sheet.getCell("A1").value).toBe("Laporan Sampah — Senin, 10 Agustus 2026");
+    // Blok 1: judul (baris 1) + grid 1 baris (baris 2) + 1 baris kosong (baris 3),
+    // sehingga judul blok 2 berada di baris 4.
+    expect(sheet.getCell("A4").value).toBe(
+      "Laporan Barang Datang — Selasa, 11 Agustus 2026",
+    );
+    expect(sheet.getImages()).toHaveLength(2);
+  });
+});
+
 });

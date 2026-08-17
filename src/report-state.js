@@ -21,3 +21,53 @@ export function canExport({ date, images, columns, reportType, busy }) {
     date && images.length > 0 && hasSupportedColumns && hasSupportedReportType && !busy,
   );
 }
+
+function createId() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `block-${Math.random().toString(36).slice(2)}-${Date.now()}`;
+}
+
+export function createBlock(overrides = {}) {
+  return {
+    id: overrides.id || createId(),
+    reportType: overrides.reportType || "waste",
+    date: overrides.date || "",
+    images: overrides.images ? [...overrides.images] : [],
+  };
+}
+
+export function addBlock(blocks, block) {
+  return [...blocks, block];
+}
+
+export function removeBlock(blocks, id) {
+  return blocks.filter((block) => block.id !== id);
+}
+
+export function updateBlock(blocks, id, patch) {
+  return blocks.map((block) => (block.id === id ? { ...block, ...patch } : block));
+}
+
+export function canExportBlock(block) {
+  return Boolean(
+    block &&
+      block.date &&
+      Array.isArray(block.images) &&
+      block.images.length > 0 &&
+      normalizeReportType(block.reportType) === block.reportType,
+  );
+}
+
+export function canExportAll({ blocks, columns, busy }) {
+  const hasSupportedColumns = normalizeColumnCount(columns) === Number(columns);
+  return Boolean(
+    !busy &&
+      hasSupportedColumns &&
+      Array.isArray(blocks) &&
+      blocks.length > 0 &&
+      blocks.every(canExportBlock),
+  );
+}
+

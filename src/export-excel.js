@@ -1,6 +1,6 @@
 import ExcelJS from "exceljs";
 import {
-  createReportFilename,
+  createMergedFilename,
   fitInside,
   formatReportTitle,
   getReportType,
@@ -13,58 +13,43 @@ const CELL_PIXEL_WIDTH = 168;
 const IMAGE_MAX_WIDTH = 154;
 const EXCEL_ROW_HEIGHTS = { 2: 210, 3: 170, 4: 150 };
 const THIN_BORDER = { style: "thin", color: { argb: "FF1F2925" } };
+const BLOCK_GAP_ROWS = 1;
 
-export function buildExcelWorkbook({
-  date,
-  images,
-  columns: requestedColumns,
-  reportType,
-}) {
-  const columns = normalizeColumnCount(requestedColumns);
-  const rowHeight = EXCEL_ROW_HEIGHTS[columns];
-  const cellPixelHeight = Math.round((rowHeight * 4) / 3);
-  const lastColumn = String.fromCharCode(64 + columns);
-  const reportDefinition = getReportType(reportType);
-  const workbook = new ExcelJS.Workbook();
-  workbook.creator = "Tabel Sampah";
-  workbook.created = new Date();
-  workbook.subject = reportDefinition.label;
-
-  const worksheet = workbook.addWorksheet(reportDefinition.label, {
-    views: [{ showGridLines: false }],
-    pageSetup: {
-      paperSize: 9,
-      orientation: "portrait",
-      fitToPage: true,
-      fitToWidth: 1,
-      fitToHeight: 0,
-      horizontalCentered: true,
-      verticalCentered: false,
-      margins: {
-        left: 0.3,
-        right: 0.3,
-        top: 0.45,
-        bottom: 0.45,
-        header: 0.15,
-        footer: 0.15,
-      },
-    },
-  });
-
-  for (let column = 1; column <= columns; column += 1) {
-    worksheet.getColumn(column).width = COLUMN_WIDTH;
+function normalizeToBlocks(report) {
+  const columns = normalizeColumnCount(report.columns);
+  if (Array.isArray(report.blocks)) {
+    return { columns, blocks: report.blocks };
   }
+  return {
+    columns,
+    blocks: [
+      { date: report.date, images: report.images, reportType: report.reportType },
+    ],
+  };
+}
 
-  worksheet.mergeCells(`A1:${lastColumn}1`);
-  const titleCell = worksheet.getCell("A1");
-  titleCell.value = formatReportTitle(reportType, date);
+/**
+ * Writes one report block (title row + photo grid) starting at `startRow`.
+ * Returns the row number of the block's last row so the caller can track a
+ * running offset and insert spacing between blocks.
+ */
+function writeBlock(
+  workbook,
+  worksheet,
+  block,
+  { columns, startRow, rowHeight, cellPixelHeight, lastColumn },
+) {
+  const titleRow = startRow;
+  worksheet.mergeCells(`A${titleRow}:${lastColumn}${titleRow}`);
+  const titleCell = worksheet.getCell(`A${titleRow}`);
+  titleCell.value = formatReportTitle(block.reportType, block.date);
   titleCell.font = { name: "Arial", size: 13, bold: false, color: { argb: "FF111111" } };
   titleCell.alignment = { horizontal: "center", vertical: "middle" };
-  worksheet.getRow(1).height = 28;
+  worksheet.getRow(titleRow).height = 28;
 
-  const rows = groupIntoRows(images, columns);
+  const rows = groupIntoRows(block.images, columns);
   rows.forEach((row, rowIndex) => {
-    const worksheetRow = rowIndex + 2;
+    const worksheetRow = titleRow + 1 + rowIndex;
     worksheet.getRow(worksheetRow).height = rowHeight;
 
     row.forEach((image, columnIndex) => {
@@ -97,8 +82,8 @@ export function buildExcelWorkbook({
     });
   });
 
-  const lastRow = Math.max(2, rows.length + 1);
-  for (let row = 1; row <= lastRow; row += 1) {
+  const lastRow = titleRow + Math.max(1, rows.length);
+  for (let row = titleRow; row <= lastRow; row += 1) {
     for (let column = 1; column <= columns; column += 1) {
       const cell = worksheet.getRow(row).getCell(column);
       cell.border = {
@@ -107,11 +92,71 @@ export function buildExcelWorkbook({
         left: THIN_BORDER,
         right: THIN_BORDER,
       };
-      if (row > 1) {
+      if (row > titleRow) {
         cell.alignment = { horizontal: "center", vertical: "middle" };
       }
     }
   }
+
+  return lastRow;
+}
+
+/**
+ * Writes each block sequentially into a single worksheet with spacing between
+ * blocks, and returns the built workbook.
+ */
+export function buildExcelWorkbook(report) {
+  const { columns, blocks } = normalizeToBlocks(report);
+  const rowHeight = EXCEL_ROW_HEIGHTS[columns];
+  const cellPixelHeight = Math.round((rowHeight * 4) / 3);
+  const lastColumn = String.fromCharCode(64 + columns);
+  const isMulti = blocks.length > 1;
+  const primaryType = getReportType(blocks[0] ? blocks[0].reportType : "waste");
+  const sheetName = isMulti ? "Laporan" : primaryType.label;
+
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "Tabel Sampah";
+  workbook.created = new Date();
+  workbook.subject = primaryType.label;
+
+  const worksheet = workbook.addWorksheet(sheetName, {
+    views: [{ showGridLines: false }],
+    pageSetup: {
+      paperSize: 9,
+      orientation: "portrait",
+      fitToPage: true,
+      fitToWidth: 1,
+      fitToHeight: 0,
+      horizontalCentered: true,
+      verticalCentered: false,
+      margins: {
+        left: 0.3,
+        right: 0.3,
+        top: 0.45,
+        bottom: 0.45,
+        header: 0.15,
+        footer: 0.15,
+      },
+    },
+  });
+
+  for (let column = 1; column <= columns; column += 1) {
+    worksheet.getColumn(column).width = COLUMN_WIDTH;
+  }
+
+  let cursor = 1;
+  let lastRow = 1;
+  blocks.forEach((block, index) => {
+    if (index > 0) cursor += BLOCK_GAP_ROWS;
+    lastRow = writeBlock(workbook, worksheet, block, {
+      columns,
+      startRow: cursor,
+      rowHeight,
+      cellPixelHeight,
+      lastColumn,
+    });
+    cursor = lastRow + 1;
+  });
 
   worksheet.pageSetup.printArea = `A1:${lastColumn}${lastRow}`;
   worksheet.pageSetup.printTitlesRow = "1:1";
@@ -127,12 +172,14 @@ export async function downloadExcelReport(report) {
   const blob = new Blob([buffer], {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });
+  const { blocks } = normalizeToBlocks(report);
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = createReportFilename(report.reportType, report.date, "xlsx");
+  anchor.download = createMergedFilename(blocks, "xlsx");
   document.body.append(anchor);
   anchor.click();
   anchor.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+

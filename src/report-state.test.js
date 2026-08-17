@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { canExport, moveItem, removeItemById } from "./report-state.js";
+import {
+  addBlock,
+  canExport,
+  canExportAll,
+  canExportBlock,
+  createBlock,
+  moveItem,
+  removeBlock,
+  removeItemById,
+  updateBlock,
+} from "./report-state.js";
+
 
 const photos = [
   { id: "a", name: "A" },
@@ -115,4 +126,93 @@ describe("pengelolaan urutan foto", () => {
       ).toBe(false);
     },
   );
+
+describe("pengelolaan blok laporan", () => {
+  it("membuat blok dengan nilai bawaan dan id unik", () => {
+    const block = createBlock();
+    expect(block.reportType).toBe("waste");
+    expect(block.date).toBe("");
+    expect(block.images).toEqual([]);
+    expect(typeof block.id).toBe("string");
+    expect(block.id.length).toBeGreaterThan(0);
+    expect(createBlock().id).not.toBe(block.id);
+  });
+
+  it("menerima override saat membuat blok", () => {
+    const block = createBlock({
+      id: "blok-1",
+      reportType: "cooked-food",
+      date: "2026-08-18",
+      images: photos,
+    });
+    expect(block.id).toBe("blok-1");
+    expect(block.reportType).toBe("cooked-food");
+    expect(block.date).toBe("2026-08-18");
+    expect(block.images).toEqual(photos);
+    expect(block.images).not.toBe(photos);
+  });
+
+  it("menambah, memperbarui, dan menghapus blok tanpa mengubah array asal", () => {
+    const first = createBlock({ id: "a" });
+    const blocks = [first];
+
+    const added = addBlock(blocks, createBlock({ id: "b" }));
+    expect(added.map((block) => block.id)).toEqual(["a", "b"]);
+    expect(blocks).toHaveLength(1);
+
+    const updated = updateBlock(added, "b", { date: "2026-08-18" });
+    expect(updated.find((block) => block.id === "b").date).toBe("2026-08-18");
+    expect(added.find((block) => block.id === "b").date).toBe("");
+
+    const removed = removeBlock(updated, "a");
+    expect(removed.map((block) => block.id)).toEqual(["b"]);
+    expect(updated).toHaveLength(2);
+  });
+
+  it("hanya mengizinkan ekspor blok saat tanggal, foto, dan jenis valid", () => {
+    expect(
+      canExportBlock({ date: "2026-08-18", images: photos, reportType: "waste" }),
+    ).toBe(true);
+    expect(canExportBlock({ date: "", images: photos, reportType: "waste" })).toBe(
+      false,
+    );
+    expect(
+      canExportBlock({ date: "2026-08-18", images: [], reportType: "waste" }),
+    ).toBe(false);
+    expect(
+      canExportBlock({ date: "2026-08-18", images: photos, reportType: "other" }),
+    ).toBe(false);
+  });
+
+  it("mengizinkan ekspor semua saat setiap blok siap dan kolom valid", () => {
+    const blocks = [
+      createBlock({ id: "a", date: "2026-08-18", reportType: "waste", images: photos }),
+      createBlock({
+        id: "b",
+        date: "2026-08-19",
+        reportType: "incoming-goods",
+        images: photos,
+      }),
+    ];
+    expect(canExportAll({ blocks, columns: 4, busy: false })).toBe(true);
+  });
+
+  it("menolak ekspor semua saat ada blok belum siap, kolom salah, atau sibuk", () => {
+    const ready = createBlock({
+      id: "a",
+      date: "2026-08-18",
+      reportType: "waste",
+      images: photos,
+    });
+    const notReady = createBlock({ id: "b", reportType: "waste", images: photos });
+
+    expect(
+      canExportAll({ blocks: [ready, notReady], columns: 4, busy: false }),
+    ).toBe(false);
+    expect(canExportAll({ blocks: [ready], columns: 5, busy: false })).toBe(false);
+    expect(canExportAll({ blocks: [ready], columns: 4, busy: true })).toBe(false);
+    expect(canExportAll({ blocks: [], columns: 4, busy: false })).toBe(false);
+  });
+});
+
 });

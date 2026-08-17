@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  createMergedFilename,
+
   createReportFilename,
   fitInside,
   formatIndonesianDate,
@@ -75,6 +77,24 @@ describe("aturan laporan", () => {
     expect(createReportFilename("cooked-food", "2026-08-18", ".DOCX")).toBe(
       "laporan-masakan-jadi-2026-08-18.docx",
     );
+  });
+
+  it("membentuk nama file gabungan untuk satu atau beberapa blok", () => {
+    // Satu blok = perilaku sama dengan createReportFilename.
+    expect(
+      createMergedFilename([{ reportType: "waste", date: "2026-08-18" }], "xlsx"),
+    ).toBe("laporan-sampah-2026-08-18.xlsx");
+
+    // Beberapa blok = gabungkan slug jenis pertama, jumlah blok, dan tanggal pertama.
+    expect(
+      createMergedFilename(
+        [
+          { reportType: "waste", date: "2026-08-18" },
+          { reportType: "incoming-goods", date: "2026-08-19" },
+        ],
+        ".DOCX",
+      ),
+    ).toBe("laporan-sampah-2-laporan-2026-08-18.docx");
   });
 
   it("mengecilkan gambar secara proporsional agar muat di sel", () => {

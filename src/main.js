@@ -3,43 +3,45 @@ import { isSupportedImage, normalizeImageFile } from "./image-utils.js";
 import {
   formatIndonesianDate,
   formatReportTitle,
+  getReportType,
   groupIntoRows,
   normalizeColumnCount,
   normalizeReportType,
 } from "./report-utils.js";
-import { canExport, moveItem, removeItemById } from "./report-state.js";
+import {
+  addBlock,
+  canExportAll,
+  createBlock,
+  moveItem,
+  removeBlock,
+  removeItemById,
+  updateBlock,
+} from "./report-state.js";
+import { enhanceSelects } from "./custom-select.js";
 
 const elements = {
-  clearReport: document.querySelector("#clear-report"),
-  columnBadge: document.querySelector("#column-badge"),
   columnCount: document.querySelector("#column-count"),
+  columnBadge: document.querySelector("#column-badge"),
+  blocks: document.querySelector("#blocks"),
+  blocksCount: document.querySelector("#blocks-count"),
+  addBlock: document.querySelector("#add-block"),
+  emptyPreview: document.querySelector("#empty-preview"),
+  previewBlocks: document.querySelector("#preview-blocks"),
   downloadExcel: document.querySelector("#download-excel"),
   downloadWord: document.querySelector("#download-word"),
-  dropZone: document.querySelector("#drop-zone"),
-  emptyPreview: document.querySelector("#empty-preview"),
-  photoCount: document.querySelector("#photo-count"),
-  photoInput: document.querySelector("#photo-input"),
-  photoList: document.querySelector("#photo-list"),
-  photoPanel: document.querySelector("#photo-panel"),
-  reportBody: document.querySelector("#report-body"),
-  reportColumns: document.querySelector("#report-columns"),
-  reportDate: document.querySelector("#report-date"),
-  reportTable: document.querySelector("#report-table"),
-  reportTitleCell: document.querySelector("#report-title-cell"),
-  reportType: document.querySelector("#report-type"),
   statusMessage: document.querySelector("#status-message"),
-  tableScroll: document.querySelector("#table-scroll"),
 };
 
+const blockTemplate = document.querySelector("#block-template");
+
 const state = {
-  date: getTodayIso(),
-  images: [],
   columns: 4,
-  reportType: "waste",
+  blocks: [createBlock({ date: getTodayIso() })],
   busy: false,
 };
 
-let dragDepth = 0;
+// Per-block transient UI state (drag depth) keyed by block id.
+const dragDepthByBlock = new Map();
 
 function getTodayIso() {
   const today = new Date();
@@ -56,14 +58,25 @@ function setStatus(message, tone = "neutral") {
 
 function setBusy(busy, message = "") {
   state.busy = busy;
-  elements.photoInput.disabled = busy;
-  elements.reportDate.disabled = busy;
   elements.columnCount.disabled = busy;
-  elements.reportType.disabled = busy;
-  elements.dropZone.classList.toggle("is-busy", busy);
+  elements.addBlock.disabled = busy;
   if (message) setStatus(message, busy ? "working" : "neutral");
   render();
 }
+
+function findBlock(id) {
+  return state.blocks.find((block) => block.id === id);
+}
+
+function blockSummary(block) {
+  const typeLabel = getReportType(block.reportType).label.replace("Laporan ", "");
+  const dateLabel = block.date ? formatIndonesianDate(block.date) : "Tanggal belum dipilih";
+  const shortDate = block.date
+    ? dateLabel.replace(/^[^,]+,\s*/, "").replace(/\s\d{4}$/, "")
+    : dateLabel;
+  return `${typeLabel} • ${shortDate} • ${block.images.length} foto`;
+}
+
 
 function createActionButton(label, symbol, onClick, disabled = false, danger = false) {
   const button = document.createElement("button");
@@ -77,24 +90,105 @@ function createActionButton(label, symbol, onClick, disabled = false, danger = f
   return button;
 }
 
-function moveImage(id, offset) {
-  state.images = moveItem(state.images, id, offset);
+function moveImage(blockId, imageId, offset) {
+  const block = findBlock(blockId);
+  if (!block) return;
+  const nextImages = moveItem(block.images, imageId, offset);
+  state.blocks = updateBlock(state.blocks, blockId, { images: nextImages });
   render();
   setStatus("Urutan foto diperbarui.", "success");
 }
 
-function removeImage(id) {
-  const selected = state.images.find((image) => image.id === id);
+function removeImage(blockId, imageId) {
+  const block = findBlock(blockId);
+  if (!block) return;
+  const selected = block.images.find((image) => image.id === imageId);
   if (selected) URL.revokeObjectURL(selected.dataUrl);
-  state.images = removeItemById(state.images, id);
+  const nextImages = removeItemById(block.images, imageId);
+  state.blocks = updateBlock(state.blocks, blockId, { images: nextImages });
   render();
   setStatus("Foto dihapus dari laporan.", "success");
 }
 
-function renderPhotoList() {
+function clearBlock(blockId) {
+  const block = findBlock(blockId);
+  if (!block || !block.images.length) return;
+  if (!window.confirm("Hapus semua foto dari laporan ini?")) return;
+  block.images.forEach((image) => URL.revokeObjectURL(image.dataUrl));
+  state.blocks = updateBlock(state.blocks, blockId, { images: [] });
+  render();
+  setStatus("Semua foto pada laporan ini telah dihapus.", "success");
+}
+
+async function addFiles(blockId, fileList) {
+  const block = findBlock(blockId);
+  if (!block) return;
+  const files = [...fileList];
+  if (files.length === 0) return;
+
+  const validFiles = files.filter(isSupportedImage);
+  const invalidCount = files.length - validFiles.length;
+
+  if (validFiles.length === 0) {
+    setStatus(
+      "Tidak ada gambar yang dapat dipakai. Pilih JPG, PNG, atau WebP maksimal 25 MB.",
+      "error",
+    );
+    return;
+  }
+
+  setBusy(true, `Memproses ${validFiles.length} foto…`);
+  const results = await Promise.allSettled(validFiles.map(normalizeImageFile));
+  const completed = results
+    .filter((result) => result.status === "fulfilled")
+    .map((result) => result.value);
+  const failedCount =
+    invalidCount + results.filter((result) => result.status === "rejected").length;
+
+  // Re-read the block in case state changed while awaiting.
+  const current = findBlock(blockId);
+  if (current) {
+    state.blocks = updateBlock(state.blocks, blockId, {
+      images: [...current.images, ...completed],
+    });
+  }
+  setBusy(false);
+
+  if (failedCount > 0) {
+    setStatus(
+      `${completed.length} foto ditambahkan, ${failedCount} file dilewati.`,
+      completed.length ? "warning" : "error",
+    );
+  } else {
+    setStatus(`${completed.length} foto ditambahkan. Semua siap disusun.`, "success");
+  }
+}
+
+function addNewBlock() {
+  const previous = state.blocks[state.blocks.length - 1];
+  const block = createBlock({
+    date: getTodayIso(),
+    reportType: previous ? previous.reportType : "waste",
+  });
+  state.blocks = addBlock(state.blocks, block);
+  render();
+  setStatus("Laporan baru ditambahkan. Isi tanggal dan fotonya.", "success");
+}
+
+function deleteBlock(blockId) {
+  if (state.blocks.length <= 1) return;
+  const block = findBlock(blockId);
+  if (block) block.images.forEach((image) => URL.revokeObjectURL(image.dataUrl));
+  dragDepthByBlock.delete(blockId);
+  state.blocks = removeBlock(state.blocks, blockId);
+  render();
+  setStatus("Laporan dihapus.", "success");
+}
+
+function renderPhotoListInto(container, block) {
   const fragment = document.createDocumentFragment();
 
-  state.images.forEach((image, index) => {
+  block.images.forEach((image, index) => {
     const card = document.createElement("article");
     card.className = "photo-card";
 
@@ -120,19 +214,19 @@ function renderPhotoList() {
       createActionButton(
         `Pindahkan ${image.name} ke kiri`,
         "←",
-        () => moveImage(image.id, -1),
+        () => moveImage(block.id, image.id, -1),
         index === 0,
       ),
       createActionButton(
         `Pindahkan ${image.name} ke kanan`,
         "→",
-        () => moveImage(image.id, 1),
-        index === state.images.length - 1,
+        () => moveImage(block.id, image.id, 1),
+        index === block.images.length - 1,
       ),
       createActionButton(
         `Hapus ${image.name}`,
         "×",
-        () => removeImage(image.id),
+        () => removeImage(block.id, image.id),
         false,
         true,
       ),
@@ -142,26 +236,127 @@ function renderPhotoList() {
     fragment.append(card);
   });
 
-  elements.photoList.replaceChildren(fragment);
+  container.replaceChildren(fragment);
 }
 
-function renderPreview() {
-  elements.reportTitleCell.textContent = formatReportTitle(state.reportType, state.date);
-  elements.reportTitleCell.colSpan = state.columns;
-  elements.columnBadge.textContent = `${state.columns} kolom`;
-  elements.reportTable.dataset.columns = String(state.columns);
+function buildBlockCard(block, index) {
+  const node = blockTemplate.content.firstElementChild.cloneNode(true);
+  node.dataset.blockId = block.id;
 
-  const columnFragment = document.createDocumentFragment();
-  for (let index = 0; index < state.columns; index += 1) {
-    const column = document.createElement("col");
-    column.style.width = `${100 / state.columns}%`;
-    columnFragment.append(column);
-  }
-  elements.reportColumns.replaceChildren(columnFragment);
+  const indexLabel = node.querySelector(".block-card__index");
+  indexLabel.textContent = `Laporan ${index + 1}`;
+  node.querySelector(".block-card__summary").textContent = blockSummary(block);
 
+  const removeButton = node.querySelector("[data-remove]");
+  removeButton.hidden = state.blocks.length <= 1;
+  removeButton.disabled = state.busy;
+  removeButton.addEventListener("click", () => deleteBlock(block.id));
+
+  const typeSelect = node.querySelector("[data-report-type]");
+  typeSelect.value = block.reportType;
+  typeSelect.disabled = state.busy;
+  typeSelect.addEventListener("change", (event) => {
+    const reportType = normalizeReportType(event.currentTarget.value);
+    event.currentTarget.value = reportType;
+    state.blocks = updateBlock(state.blocks, block.id, { reportType });
+    render();
+    setStatus("Jenis laporan diperbarui.", "success");
+  });
+
+  const dateInput = node.querySelector("[data-report-date]");
+  dateInput.value = block.date;
+  dateInput.disabled = state.busy;
+  dateInput.addEventListener("change", (event) => {
+    const date = event.currentTarget.value;
+    state.blocks = updateBlock(state.blocks, block.id, { date });
+    render();
+    setStatus(
+      date ? `Tanggal diubah menjadi ${formatIndonesianDate(date)}.` : "Pilih tanggal laporan.",
+      date ? "success" : "warning",
+    );
+  });
+
+  const dropZone = node.querySelector("[data-drop-zone]");
+  dropZone.classList.toggle("is-busy", state.busy);
+  const photoInput = node.querySelector("[data-photo-input]");
+  photoInput.disabled = state.busy;
+  photoInput.addEventListener("change", async (event) => {
+    await addFiles(block.id, event.currentTarget.files);
+    event.currentTarget.value = "";
+  });
+
+  dropZone.addEventListener("dragenter", (event) => {
+    event.preventDefault();
+    const depth = (dragDepthByBlock.get(block.id) || 0) + 1;
+    dragDepthByBlock.set(block.id, depth);
+    dropZone.classList.add("is-dragging");
+  });
+  dropZone.addEventListener("dragover", (event) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+  });
+  dropZone.addEventListener("dragleave", (event) => {
+    event.preventDefault();
+    const depth = Math.max(0, (dragDepthByBlock.get(block.id) || 0) - 1);
+    dragDepthByBlock.set(block.id, depth);
+    if (depth === 0) dropZone.classList.remove("is-dragging");
+  });
+  dropZone.addEventListener("drop", async (event) => {
+    event.preventDefault();
+    dragDepthByBlock.set(block.id, 0);
+    dropZone.classList.remove("is-dragging");
+    if (!state.busy) await addFiles(block.id, event.dataTransfer.files);
+  });
+
+  const photosPanel = node.querySelector("[data-photos]");
+  const hasImages = block.images.length > 0;
+  photosPanel.hidden = !hasImages;
+  node.querySelector("[data-photo-count]").textContent = String(block.images.length);
+  const clearButton = node.querySelector("[data-clear]");
+  clearButton.disabled = state.busy;
+  clearButton.addEventListener("click", () => clearBlock(block.id));
+  renderPhotoListInto(node.querySelector("[data-photo-list]"), block);
+
+  return node;
+}
+
+function renderBlocks() {
   const fragment = document.createDocumentFragment();
+  state.blocks.forEach((block, index) => {
+    fragment.append(buildBlockCard(block, index));
+  });
+  elements.blocks.replaceChildren(fragment);
+  enhanceSelects(elements.blocks);
+  elements.blocksCount.textContent = `${state.blocks.length} laporan`;
+}
 
-  groupIntoRows(state.images, state.columns).forEach((row, rowIndex) => {
+
+function buildPreviewTable(block) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "table-scroll";
+
+  const table = document.createElement("table");
+  table.className = "report-table";
+  table.dataset.columns = String(state.columns);
+  table.setAttribute("aria-label", "Pratinjau tabel laporan");
+
+  const colgroup = document.createElement("colgroup");
+  for (let index = 0; index < state.columns; index += 1) {
+    const col = document.createElement("col");
+    col.style.width = `${100 / state.columns}%`;
+    colgroup.append(col);
+  }
+
+  const thead = document.createElement("thead");
+  const headRow = document.createElement("tr");
+  const titleCell = document.createElement("th");
+  titleCell.colSpan = state.columns;
+  titleCell.textContent = formatReportTitle(block.reportType, block.date);
+  headRow.append(titleCell);
+  thead.append(headRow);
+
+  const tbody = document.createElement("tbody");
+  groupIntoRows(block.images, state.columns).forEach((row, rowIndex) => {
     const tableRow = document.createElement("tr");
     row.forEach((image, columnIndex) => {
       const cell = document.createElement("td");
@@ -176,86 +371,57 @@ function renderPreview() {
       }
       tableRow.append(cell);
     });
-    fragment.append(tableRow);
+    tbody.append(tableRow);
   });
 
-  elements.reportBody.replaceChildren(fragment);
+  table.append(colgroup, thead, tbody);
+  wrapper.append(table);
+  return wrapper;
 }
 
-function render() {
-  const hasImages = state.images.length > 0;
-  const ready = canExport(state);
+function renderPreview() {
+  elements.columnBadge.textContent = `${state.columns} kolom`;
+  const blocksWithImages = state.blocks.filter((block) => block.images.length > 0);
+  const hasAnyImages = blocksWithImages.length > 0;
 
-  elements.photoCount.textContent = String(state.images.length);
-  elements.photoPanel.hidden = !hasImages;
-  elements.emptyPreview.hidden = hasImages;
-  elements.tableScroll.hidden = !hasImages;
-  elements.downloadWord.disabled = !ready;
-  elements.downloadExcel.disabled = !ready;
-  elements.clearReport.disabled = state.busy;
+  elements.emptyPreview.hidden = hasAnyImages;
+  elements.previewBlocks.hidden = !hasAnyImages;
 
-  renderPhotoList();
-  renderPreview();
-}
-
-async function addFiles(fileList) {
-  const files = [...fileList];
-  if (files.length === 0) return;
-
-  const validFiles = files.filter(isSupportedImage);
-  const invalidCount = files.length - validFiles.length;
-
-  if (validFiles.length === 0) {
-    setStatus(
-      "Tidak ada gambar yang dapat dipakai. Pilih JPG, PNG, atau WebP maksimal 25 MB.",
-      "error",
-    );
+  if (!hasAnyImages) {
+    elements.previewBlocks.replaceChildren();
     return;
   }
 
-  setBusy(true, `Memproses ${validFiles.length} foto…`);
-  const results = await Promise.allSettled(validFiles.map(normalizeImageFile));
-  const completed = results
-    .filter((result) => result.status === "fulfilled")
-    .map((result) => result.value);
-  const failedCount =
-    invalidCount + results.filter((result) => result.status === "rejected").length;
-
-  state.images.push(...completed);
-  setBusy(false);
-
-  if (failedCount > 0) {
-    setStatus(
-      `${completed.length} foto ditambahkan, ${failedCount} file dilewati.`,
-      completed.length ? "warning" : "error",
-    );
-  } else {
-    setStatus(`${completed.length} foto ditambahkan. Semua siap disusun.`, "success");
-  }
+  const fragment = document.createDocumentFragment();
+  blocksWithImages.forEach((block) => {
+    fragment.append(buildPreviewTable(block));
+  });
+  elements.previewBlocks.replaceChildren(fragment);
 }
 
-function clearReport() {
-  if (!state.images.length) return;
-  if (!window.confirm("Hapus semua foto dari laporan ini?")) return;
+function render() {
+  const ready = canExportAll(state);
+  elements.downloadWord.disabled = !ready;
+  elements.downloadExcel.disabled = !ready;
+  elements.addBlock.disabled = state.busy;
 
-  state.images.forEach((image) => URL.revokeObjectURL(image.dataUrl));
-  state.images = [];
-  elements.photoInput.value = "";
-  render();
-  setStatus("Semua foto telah dihapus. Tanggal laporan tetap tersimpan.", "success");
+  renderBlocks();
+  renderPreview();
 }
 
 async function runExport(format) {
-  if (!canExport(state)) return;
+  if (!canExportAll(state)) return;
 
   const label = format === "word" ? "Word" : "Excel";
   setBusy(true, `Membuat file ${label}…`);
   try {
     const report = {
-      date: state.date,
-      images: state.images,
       columns: state.columns,
-      reportType: state.reportType,
+      blocks: state.blocks.map((block) => ({
+        date: block.date,
+        images: block.images,
+        reportType: block.reportType,
+      })),
     };
     if (format === "word") {
       const { downloadWordReport } = await import("./export-word.js");
@@ -273,17 +439,8 @@ async function runExport(format) {
   }
 }
 
-elements.reportDate.value = state.date;
 elements.columnCount.value = String(state.columns);
-elements.reportType.value = state.reportType;
-elements.reportDate.addEventListener("change", (event) => {
-  state.date = event.currentTarget.value;
-  render();
-  setStatus(
-    state.date ? `Tanggal diubah menjadi ${formatIndonesianDate(state.date)}.` : "Pilih tanggal laporan.",
-    state.date ? "success" : "warning",
-  );
-});
+enhanceSelects();
 
 elements.columnCount.addEventListener("change", (event) => {
   state.columns = normalizeColumnCount(event.currentTarget.value);
@@ -292,48 +449,16 @@ elements.columnCount.addEventListener("change", (event) => {
   setStatus(`Tabel diubah menjadi ${state.columns} kolom.`, "success");
 });
 
-elements.reportType.addEventListener("change", (event) => {
-  state.reportType = normalizeReportType(event.currentTarget.value);
-  event.currentTarget.value = state.reportType;
-  render();
-  setStatus("Jenis laporan diperbarui.", "success");
-});
-
-elements.photoInput.addEventListener("change", async (event) => {
-  await addFiles(event.currentTarget.files);
-  event.currentTarget.value = "";
-});
-
-elements.clearReport.addEventListener("click", clearReport);
+elements.addBlock.addEventListener("click", addNewBlock);
 elements.downloadWord.addEventListener("click", () => runExport("word"));
 elements.downloadExcel.addEventListener("click", () => runExport("excel"));
 
-elements.dropZone.addEventListener("dragenter", (event) => {
-  event.preventDefault();
-  dragDepth += 1;
-  elements.dropZone.classList.add("is-dragging");
-});
-
-elements.dropZone.addEventListener("dragover", (event) => {
-  event.preventDefault();
-  event.dataTransfer.dropEffect = "copy";
-});
-
-elements.dropZone.addEventListener("dragleave", (event) => {
-  event.preventDefault();
-  dragDepth = Math.max(0, dragDepth - 1);
-  if (dragDepth === 0) elements.dropZone.classList.remove("is-dragging");
-});
-
-elements.dropZone.addEventListener("drop", async (event) => {
-  event.preventDefault();
-  dragDepth = 0;
-  elements.dropZone.classList.remove("is-dragging");
-  if (!state.busy) await addFiles(event.dataTransfer.files);
-});
-
 window.addEventListener("beforeunload", () => {
-  state.images.forEach((image) => URL.revokeObjectURL(image.dataUrl));
+  state.blocks.forEach((block) =>
+    block.images.forEach((image) => URL.revokeObjectURL(image.dataUrl)),
+  );
 });
 
 render();
+
+

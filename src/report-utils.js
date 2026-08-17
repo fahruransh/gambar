@@ -89,6 +89,24 @@ export function createReportFilename(reportType, isoDate, extension) {
   return `${getReportType(reportType).slug}-${isoDate}.${cleanExtension}`;
 }
 
+/**
+ * Builds a filename for a report file. A single block matches the original
+ * `createReportFilename` output; multiple blocks merge the primary report
+ * type slug with a block count and the first date.
+ */
+export function createMergedFilename(blocks, extension) {
+  if (!Array.isArray(blocks) || blocks.length === 0) {
+    return createReportFilename("waste", "", extension);
+  }
+  if (blocks.length === 1) {
+    return createReportFilename(blocks[0].reportType, blocks[0].date, extension);
+  }
+  const cleanExtension = String(extension).replace(/^\./, "").toLowerCase();
+  const slug = getReportType(blocks[0].reportType).slug;
+  return `${slug}-${blocks.length}-laporan-${blocks[0].date}.${cleanExtension}`;
+}
+
+
 export function fitInside(width, height, maxWidth, maxHeight) {
   if (width <= 0 || height <= 0) {
     return { width: maxWidth, height: maxHeight };

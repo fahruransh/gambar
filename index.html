@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="id">
   <head>
     <meta charset="UTF-8" />
@@ -8,61 +8,25 @@
       name="description"
       content="Susun foto sampah harian ke tabel rapi dan ekspor ke Word atau Excel."
     />
-    <title>Tabel Sampah — Laporan Foto Harian</title>
+    <title>Laporan Foto Harian</title>
   </head>
   <body>
-    <header class="site-header">
-      <a class="brand" href="#main-content" aria-label="Tabel Sampah, ke konten utama">
-        <span class="brand-mark" aria-hidden="true">
-          <svg viewBox="0 0 40 40" role="img">
-            <path d="M11 15h18l-1.6 18H12.6L11 15Z" />
-            <path d="M15 11h10M17 8h6" />
-            <path d="M16 20v8M20 20v8M24 20v8" />
-          </svg>
-        </span>
-        <span>
-          <strong>Tabel Sampah</strong>
-          <small>Laporan foto harian</small>
-        </span>
-      </a>
-      <span class="privacy-note">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M12 3 5 6v5c0 4.6 2.9 8.8 7 10 4.1-1.2 7-5.4 7-10V6l-7-3Z" />
-          <path d="m9.5 12 1.7 1.7 3.7-4" />
-        </svg>
-        Foto tetap di perangkat Anda
-      </span>
-    </header>
 
     <main id="main-content">
       <section class="hero" aria-labelledby="page-title">
-        <span class="eyebrow">Penyusun laporan</span>
-        <h1 id="page-title">Foto harian, langsung jadi<br /><em>laporan yang rapi.</em></h1>
-        <p>
-          Pilih tanggal, jumlah kolom, dan unggah semua foto. Kami susun otomatis dalam
-          tabel rapi yang siap dibuka di Word maupun Excel.
-        </p>
+        <h1 id="page-title">Foto Kerjaan Kamu, langsung jadi<br /><em>laporan yang rapi.</em></h1>
       </section>
 
       <section class="workspace" aria-label="Penyusun laporan foto">
-        <div class="setup-card">
-          <div class="step-block date-step">
+        <div class="setup-card single">
+          <div class="step-block">
             <span class="step-number" aria-hidden="true">1</span>
             <div class="step-content">
-              <label for="report-date">Tanggal laporan</label>
-              <p>Pilih tanggal pengambilan foto.</p>
-              <label class="report-type-field" for="report-type">
-                <span>Jenis laporan</span>
-                <select id="report-type" name="report-type">
-                  <option value="waste" selected>Laporan Sampah</option>
-                  <option value="incoming-goods">Laporan Barang Datang</option>
-                  <option value="cooked-food">Laporan Masakan Jadi</option>
-                </select>
-              </label>
-              <input id="report-date" name="report-date" type="date" required />
-              <label class="column-field" for="column-count">
+              <h3 class="step-title">Pengaturan tabel</h3>
+              <p>Jumlah kolom berlaku sama untuk semua laporan dalam file ini.</p>
+              <label class="field" for="column-count">
                 <span>Jumlah kolom</span>
-                <select id="column-count" name="column-count">
+                <select id="column-count" name="column-count" data-enhance>
                   <option value="2">2 kolom</option>
                   <option value="3">3 kolom</option>
                   <option value="4" selected>4 kolom</option>
@@ -70,47 +34,30 @@
               </label>
             </div>
           </div>
-
-          <div class="step-block upload-step">
-            <span class="step-number" aria-hidden="true">2</span>
-            <div class="step-content">
-              <label for="photo-input">Unggah foto laporan</label>
-              <p>Bisa pilih banyak foto sekaligus.</p>
-              <label id="drop-zone" class="drop-zone" for="photo-input">
-                <input
-                  id="photo-input"
-                  name="photos"
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  multiple
-                />
-                <span class="upload-icon" aria-hidden="true">
-                  <svg viewBox="0 0 48 48">
-                    <path d="M24 31V12m0 0-8 8m8-8 8 8" />
-                    <path d="M12 28v8h24v-8" />
-                  </svg>
-                </span>
-                <strong>Tarik foto ke sini</strong>
-                <span>atau <u>pilih dari perangkat</u></span>
-                <small>JPG, PNG, atau WebP • maksimal 25 MB per foto</small>
-              </label>
-            </div>
-          </div>
         </div>
 
-        <div id="photo-panel" class="photo-panel" hidden>
-          <div class="panel-heading">
+        <section class="blocks-section" aria-labelledby="blocks-title">
+          <div class="blocks-heading">
             <div>
-              <span class="section-kicker">Urutan foto</span>
-              <h2><span id="photo-count">0</span> foto siap digunakan</h2>
+              <span class="section-kicker">Isi laporan</span>
+              <h2 id="blocks-title">Laporan per tanggal</h2>
             </div>
-            <button id="clear-report" class="text-button danger" type="button">
-              Hapus semua
-            </button>
+            <span id="blocks-count" class="column-badge">1 laporan</span>
           </div>
-          <p class="panel-help">Gunakan tombol panah untuk mengatur urutan foto di tabel.</p>
-          <div id="photo-list" class="photo-list" aria-label="Daftar foto terpilih"></div>
-        </div>
+          <p class="panel-help">
+            Setiap tanggal punya tabelnya sendiri. Semua digabung dalam satu file
+            Word atau Excel.
+          </p>
+          <div id="blocks" class="blocks-list"></div>
+          <button id="add-block" class="add-block-button" type="button">
+            <span aria-hidden="true">+</span>
+            Tambah laporan tanggal lain
+          </button>
+          <p class="add-block-help">
+            Gunakan ini kalau Anda ingin beberapa tanggal (atau jenis laporan) dalam
+            satu file.
+          </p>
+        </section>
 
         <section class="preview-section" aria-labelledby="preview-title">
           <div class="preview-heading">
@@ -133,21 +80,13 @@
               <strong>Tabel Anda akan muncul di sini</strong>
               <p>Pilih tanggal lalu unggah minimal satu foto untuk mulai.</p>
             </div>
-            <div id="table-scroll" class="table-scroll" hidden>
-              <table id="report-table" aria-label="Pratinjau tabel laporan">
-                <colgroup id="report-columns"></colgroup>
-                <thead>
-                  <tr><th id="report-title-cell" colspan="4">Pilih tanggal laporan</th></tr>
-                </thead>
-                <tbody id="report-body"></tbody>
-              </table>
-            </div>
+            <div id="preview-blocks" class="preview-blocks" hidden></div>
           </div>
         </section>
 
         <div class="export-bar">
           <div>
-            <span class="step-number" aria-hidden="true">3</span>
+            <span class="step-number" aria-hidden="true">2</span>
             <span><strong>Unduh laporan</strong><small>Gambar tertanam, tabel tetap rapi.</small></span>
           </div>
           <div class="export-actions">
@@ -166,11 +105,84 @@
       </section>
     </main>
 
-    <footer>
-      <span>Tabel Sampah</span>
-      <span>Dibuat untuk pekerjaan lapangan yang lebih ringan.</span>
-    </footer>
-
     <script type="module" src="/src/main.js"></script>
+
+    <template id="block-template">
+      <article class="block-card" data-block>
+        <div class="block-card__head">
+          <div class="block-card__label">
+            <span class="block-card__index"></span>
+            <span class="block-card__summary"></span>
+          </div>
+          <button
+            class="block-card__remove"
+            type="button"
+            data-remove
+            aria-label="Hapus laporan ini"
+            title="Hapus laporan ini"
+            hidden
+          >
+            ×
+          </button>
+        </div>
+
+        <div class="block-card__fields">
+          <label class="field">
+            <span>Jenis laporan</span>
+            <select data-report-type data-enhance>
+              <option value="waste" selected>Laporan Sampah</option>
+              <option value="incoming-goods">Laporan Barang Datang</option>
+              <option value="cooked-food">Laporan Masakan Jadi</option>
+            </select>
+          </label>
+          <label class="field date-field">
+            <span>Tanggal laporan</span>
+            <span class="date-control">
+              <input type="date" data-report-date required />
+              <span class="date-control__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false">
+                  <path d="M7 3v3m10-3v3M4 9h16M6 5h12a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" />
+                </svg>
+              </span>
+            </span>
+          </label>
+        </div>
+
+        <label class="drop-zone" data-drop-zone>
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            multiple
+            data-photo-input
+          />
+          <span class="upload-icon" aria-hidden="true">
+            <svg viewBox="0 0 48 48">
+              <path d="M24 31V12m0 0-8 8m8-8 8 8" />
+              <path d="M12 28v8h24v-8" />
+            </svg>
+          </span>
+          <strong>Tarik foto ke sini</strong>
+          <span>atau <u>pilih dari perangkat</u></span>
+          <small>JPG, PNG, atau WebP maksimal 25 MB per foto</small>
+        </label>
+
+        <div class="block-card__photos" data-photos hidden>
+          <div class="panel-heading">
+            <div>
+              <span class="section-kicker">Urutan foto</span>
+              <h3><span data-photo-count>0</span> foto siap digunakan</h3>
+            </div>
+            <button class="text-button danger" type="button" data-clear>
+              Hapus semua
+            </button>
+          </div>
+          <p class="panel-help">
+            Gunakan tombol panah untuk mengatur urutan foto di tabel.
+          </p>
+          <div class="photo-list" data-photo-list aria-label="Daftar foto terpilih"></div>
+        </div>
+      </article>
+    </template>
   </body>
+
 </html>
