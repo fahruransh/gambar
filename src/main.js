@@ -281,8 +281,12 @@ function buildBlockCard(block, index) {
   const photoInput = node.querySelector("[data-photo-input]");
   photoInput.disabled = state.busy;
   photoInput.addEventListener("change", async (event) => {
-    await addFiles(block.id, event.currentTarget.files);
-    event.currentTarget.value = "";
+    // Simpan referensi input sebelum `await`: `addFiles` memanggil render()
+    // yang membangun ulang kartu blok, sehingga `event.currentTarget` sudah
+    // bernilai null setelah promise selesai.
+    const input = event.currentTarget;
+    await addFiles(block.id, input.files);
+    input.value = "";
   });
 
   dropZone.addEventListener("dragenter", (event) => {

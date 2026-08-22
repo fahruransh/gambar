@@ -14,6 +14,9 @@ const IMAGE_MAX_WIDTH = 154;
 const EXCEL_ROW_HEIGHTS = { 2: 210, 3: 170, 4: 150 };
 const THIN_BORDER = { style: "thin", color: { argb: "FF1F2925" } };
 const BLOCK_GAP_ROWS = 1;
+// Tinggi baris pemisah antar blok (poin). Tanpa nilai eksplisit, baris ini
+// mewarisi tinggi baris grid sehingga jarak antar tabel menjadi sangat besar.
+const BLOCK_GAP_ROW_HEIGHT = 10;
 
 function normalizeToBlocks(report) {
   const columns = normalizeColumnCount(report.columns);
@@ -147,7 +150,14 @@ export function buildExcelWorkbook(report) {
   let cursor = 1;
   let lastRow = 1;
   blocks.forEach((block, index) => {
-    if (index > 0) cursor += BLOCK_GAP_ROWS;
+    if (index > 0) {
+      // Beri tinggi eksplisit pada baris pemisah; tanpa ini baris mewarisi
+      // `defaultRowHeight` (tinggi baris foto) sehingga jaraknya berlebihan.
+      for (let gap = 0; gap < BLOCK_GAP_ROWS; gap += 1) {
+        worksheet.getRow(cursor + gap).height = BLOCK_GAP_ROW_HEIGHT;
+      }
+      cursor += BLOCK_GAP_ROWS;
+    }
     lastRow = writeBlock(workbook, worksheet, block, {
       columns,
       startRow: cursor,
@@ -159,7 +169,9 @@ export function buildExcelWorkbook(report) {
   });
 
   worksheet.pageSetup.printArea = `A1:${lastColumn}${lastRow}`;
-  worksheet.pageSetup.printTitlesRow = "1:1";
+  // Baris 1 hanya boleh diulang saat seluruh sheet memakai satu judul.
+  // Pada file multi-blok, judul blok pertama tidak mewakili blok lain.
+  if (!isMulti) worksheet.pageSetup.printTitlesRow = "1:1";
   worksheet.properties.defaultColWidth = COLUMN_WIDTH;
   worksheet.properties.defaultRowHeight = rowHeight;
 
